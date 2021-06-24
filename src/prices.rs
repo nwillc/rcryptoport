@@ -11,7 +11,7 @@ pub struct TickerInfo {
     pub price_timestamp: String,
 }
 
-pub fn prices(app_id: String, currencies: &Vec<String>) -> Result<HashMap<String,Decimal>, String> {
+pub fn prices(app_id: &String, currencies: &Vec<String>) -> Result<HashMap<String,Decimal>, String> {
     let ids = currencies.join(",");
     return match ureq::get("https://api.nomics.com/v1/currencies/ticker")
         .query("key", app_id.as_str())
@@ -45,7 +45,7 @@ mod tests {
     fn test_prices() {
         let app_id = env::var("NOMICS_APP_ID").unwrap();
         let currencies = vec!["BTC".to_string(), "ETH".to_string()];
-        match super::prices(app_id, &currencies) {
+        match super::prices(&app_id, &currencies) {
             Err(err) => assert!(false, "unexpected error {}", err),
             Ok(prices) => {
                 for currency in currencies {
@@ -54,17 +54,4 @@ mod tests {
             }
         }
     }
-
-    // #[test]
-    // fn test_prices2() {
-    //     let app_id = env::var("NOMICS_APP_ID").unwrap();
-    //     let currencies = vec!["BTC".to_string(), "ETH".to_string()];
-    //     let p =  super::prices(app_id, &currencies).unwrap();
-    //
-    //     let pm: HashMap<&String,&Decimal> = p.iter().map(|ti| {
-    //         (&ti.currency, &ti.price)
-    //     }).collect();
-    //
-    // println!("{}",pm.get(&("BTC".to_string())).unwrap());
-    // }
 }
