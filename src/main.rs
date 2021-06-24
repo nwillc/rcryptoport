@@ -23,6 +23,7 @@ fn main() {
                 Err(err) => println!("unable to get prices {:?}", err),
                 Ok(prices) => {
                     let mut current_total: Decimal = Decimal::from(0);
+                    let mut current_values:  HashMap<String, Decimal> = HashMap::new();
                     for (currency, holding) in holdings.iter() {
                         match prices.get(currency) {
                             None => {}
@@ -38,6 +39,7 @@ fn main() {
                                 let text = format!("{:16} {:4} {:13} ({:>7}%)",
                                                    holding, currency, current_value.round_dp(2), percent_change.round_dp(2));
                                 println!("{}", text.color(color));
+                                current_values.insert(currency.clone(), current_value);
                                 current_total += current_value;
                             }
                         }
@@ -51,6 +53,10 @@ fn main() {
                     let text = format!("{:>20} {:14} ({:>7}%)",
                                        "Total:", current_total.round_dp(2), percent_change.round_dp(2));
                     println!("{}", text.color(color));
+                    match  config::update_config(&config, &current_values) {
+                        Err(err) => println!("{}", err.to_string()),
+                        Ok(_) => {},
+                    }
                 }
             }
         }
