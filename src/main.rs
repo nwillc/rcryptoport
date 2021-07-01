@@ -16,30 +16,27 @@ fn main() {
             let currencies: Vec<String> = config.portfolio.positions.iter()
                 .map(|position| position.currency.to_string())
                 .collect();
-            let holdings: HashMap<String, Decimal> = config.portfolio.positions.iter()
-                .map(|position| (position.currency.to_string(), position.holding))
-                .collect();
             match prices::prices(&config.app_id, &currencies) {
                 Err(err) => println!("unable to get prices {:?}", err),
                 Ok(prices) => {
                     let mut current_total: Decimal = Decimal::from(0);
                     let mut current_values:  HashMap<String, Decimal> = HashMap::new();
-                    for (currency, holding) in holdings.iter() {
-                        match prices.get(currency) {
+                    for position in config.portfolio.positions.iter() {
+                        match prices.get(&position.currency) {
                             None => {}
                             Some(price) => {
-                                let current_value = holding * price;
-                                let mut prior_value: Decimal = Decimal::from(0);
-                                match config.values.get(currency) {
+                                let current_value = position.holding * price;
+                                let mut prior_value: Decimal = Decimal::ZERO;
+                                match config.values.get(&position.currency) {
                                     None => {}
                                     Some(value) => prior_value = *value,
                                 }
                                 let percent_change = percent_change(prior_value, current_value);
                                 let color = change_color(percent_change);
                                 let text = format!("{:16} {:4} {:13} ({:>7}%)",
-                                                   holding, currency, current_value.round_dp(2), percent_change.round_dp(2));
+                                                   position.holding, position.currency, current_value.round_dp(2), percent_change.round_dp(2));
                                 println!("{}", text.color(color));
-                                current_values.insert(currency.clone(), current_value);
+                                current_values.insert(position.currency.clone(), current_value);
                                 current_total += current_value;
                             }
                         }
