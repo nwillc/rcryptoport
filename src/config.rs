@@ -74,10 +74,7 @@ fn write_config<P: AsRef<Path>>(path: P, config: &Configuration) -> Result<(), S
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashMap;
     use std::ffi::OsStr;
-
-    use rust_decimal::Decimal;
 
     #[test]
     fn test_get_config_file() {
