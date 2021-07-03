@@ -38,13 +38,16 @@ pub fn get_config() -> Result<Configuration, String> {
             let c: Result<Configuration, Error> = serde_json::from_str(&json);
             match c {
                 Err(err) => Err(err.to_string()),
-                Ok(config) => Ok(config)
+                Ok(config) => Ok(config),
             }
         }
     }
 }
 
-pub fn update_config(config: &Configuration, values: &HashMap<String, Decimal>) -> Result<(), String> {
+pub fn update_config(
+    config: &Configuration,
+    values: &HashMap<String, Decimal>,
+) -> Result<(), String> {
     let new_config = Configuration {
         app_id: config.app_id.clone(),
         portfolio: config.portfolio.clone(),
@@ -52,26 +55,20 @@ pub fn update_config(config: &Configuration, values: &HashMap<String, Decimal>) 
     };
     match get_config_file() {
         Err(err) => Err(err.to_string()),
-        Ok(path) => {
-            write_config(path, &new_config)
-        }
+        Ok(path) => write_config(path, &new_config),
     }
 }
 
 fn write_config<P: AsRef<Path>>(path: P, config: &Configuration) -> Result<(), String> {
     match serde_json::to_string(&config) {
         Err(err) => Err(err.to_string()),
-        Ok(as_json) => {
-            match fs::File::create(path) {
+        Ok(as_json) => match fs::File::create(path) {
+            Err(err) => Err(err.to_string()),
+            Ok(mut file) => match file.write_all(as_json.as_bytes()) {
                 Err(err) => Err(err.to_string()),
-                Ok(mut file) => {
-                    match file.write_all(as_json.as_bytes()) {
-                        Err(err) => Err(err.to_string()),
-                        Ok(_) => Ok(()),
-                    }
-                }
-            }
-        }
+                Ok(_) => Ok(()),
+            },
+        },
     }
 }
 
@@ -86,7 +83,10 @@ mod tests {
     fn test_get_config_file() {
         match super::get_config_file() {
             Err(err) => assert!(false, "unexpected error {}", err),
-            Ok(config_file) => assert_eq!(Some(OsStr::new(super::CONFIG_FILE)), config_file.file_name()),
+            Ok(config_file) => assert_eq!(
+                Some(OsStr::new(super::CONFIG_FILE)),
+                config_file.file_name()
+            ),
         }
     }
 
@@ -102,12 +102,10 @@ mod tests {
     fn test_write_config() {
         match super::get_config() {
             Err(err) => assert!(false, "unexpected error {}", err),
-            Ok(config) => {
-                match super::write_config("/tmp/foo.json", &config) {
-                    Err(err) => assert!(false, "unexpected error {}", err),
-                    Ok(_) => {}
-                }
-            }
+            Ok(config) => match super::write_config("/tmp/foo.json", &config) {
+                Err(err) => assert!(false, "unexpected error {}", err),
+                Ok(_) => {}
+            },
         }
     }
 
