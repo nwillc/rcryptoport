@@ -9,8 +9,8 @@ use rust_decimal::Decimal;
 use rust_decimal::prelude::FromStr;
 use serde::{Deserialize, Serialize};
 use serde_json::Error;
-use crate::model;
 
+use crate::model;
 use crate::model::Portfolio;
 
 const CONFIG_FILE: &'static str = ".crypto_port.json";
@@ -67,27 +67,28 @@ pub fn setup() {
     println!("Enter your crypto holdings, the currency name and the holding size. Blank currency when done.");
     let mut positions: Vec<model::Position> = Vec::new();
     loop {
-        let currency = read_string(" Currency: ".to_string());
+        let mut currency = read_string(" Currency: ".to_string());
         if currency.eq("") {
             break;
         }
+        currency.make_ascii_uppercase();
         let holding = read_string(" Holding: ".to_string());
         match Decimal::from_str(holding.as_str()) {
             Err(err) => println! {"Invalid holding: {}", err},
             Ok(value) => {
-                let position = model::Position{ currency, holding: value};
+                let position = model::Position { currency, holding: value };
                 positions.push(position);
             }
         }
     };
-    let portfolio = model::Portfolio{ positions };
-    let config = Configuration{
+    let portfolio = model::Portfolio { positions };
+    let config = Configuration {
         app_id: app_id.to_string(),
         portfolio,
-        values: Default::default()
+        values: Default::default(),
     };
-
-    println!("{:?}", config)
+    let path = get_config_file().expect("Unable to get config file");
+    write_config(path, &config).expect("Unable to write config");
 }
 
 fn write_config<P: AsRef<Path>>(path: P, config: &Configuration) -> Result<(), String> {

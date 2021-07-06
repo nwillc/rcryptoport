@@ -34,18 +34,19 @@ fn main() {
         .map(|position| position.currency.to_string())
         .collect();
     let prices = prices::prices(&config.app_id, &currencies).expect("unable to retrieve prices");
-    let mut current_total: Decimal = Decimal::from(0);
+    let mut current_total: Decimal = Decimal::ZERO;
+    let mut prior_total: Decimal = Decimal::ZERO;
     let mut current_values: HashMap<String, Decimal> = HashMap::new();
     for position in config.portfolio.positions.iter() {
         match prices.get(&position.currency) {
             None => {}
             Some(price) => {
                 let current_value = position.holding * price;
-                let mut prior_value: Decimal = Decimal::ZERO;
-                match config.values.get(&position.currency) {
-                    None => {}
-                    Some(value) => prior_value = *value,
-                }
+                let prior_value = match config.values.get(&position.currency) {
+                    None => current_value,
+                    Some(value) => *value,
+                };
+                prior_total += prior_value;
                 let percent_change = percent::percent_change(prior_value, current_value);
                 let color = change_color(percent_change);
                 let text = format!(
@@ -60,10 +61,6 @@ fn main() {
                 current_total += current_value;
             }
         }
-    }
-    let mut prior_total: Decimal = Decimal::from(0);
-    for (_key, value) in config.values.iter() {
-        prior_total += value;
     }
     let percent_change = percent::percent_change(prior_total, current_total);
     let color = change_color(percent_change);
