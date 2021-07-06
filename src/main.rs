@@ -1,15 +1,31 @@
 use std::collections::HashMap;
 
+use clap::App;
 use colored::*;
-use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
+use rust_decimal::prelude::ToPrimitive;
 
 mod config;
 mod model;
 mod percent;
 mod prices;
 
+const SETUP: &str = "setup";
+
 fn main() {
+    let matches = App::new("rcryptoport")
+        .version("1.0")
+        .author("nwillc@gmail.com")
+        .about("Retrieve current value of your crypto portfolio.")
+        .subcommand(App::new(SETUP)
+            .about("Set up portfolio configuration"))
+        .get_matches();
+
+    if let Some(ref _matches) = matches.subcommand_matches(SETUP) {
+        config::setup();
+        return
+    }
+
     let config = config::get_config().expect("unable to read config file");
     let currencies: Vec<String> = config
         .portfolio
@@ -67,5 +83,5 @@ fn change_color(change: Decimal) -> String {
         Some(f) if f > 0.0 => "green",
         _ => "white",
     }
-    .to_string()
+        .to_string()
 }

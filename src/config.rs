@@ -1,12 +1,15 @@
 use std::collections::HashMap;
 use std::fs;
+use std::io::{self, BufRead};
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
 use dirs::home_dir;
 use rust_decimal::Decimal;
+use rust_decimal::prelude::FromStr;
 use serde::{Deserialize, Serialize};
 use serde_json::Error;
+use crate::model;
 
 use crate::model::Portfolio;
 
@@ -59,6 +62,34 @@ pub fn update_config(
     }
 }
 
+pub fn setup() {
+    let app_id = read_string("Enter App ID: ".to_string());
+    println!("Enter your crypto holdings, the currency name and the holding size. Blank currency when done.");
+    let mut positions: Vec<model::Position> = Vec::new();
+    loop {
+        let currency = read_string(" Currency: ".to_string());
+        if currency.eq("") {
+            break;
+        }
+        let holding = read_string(" Holding: ".to_string());
+        match Decimal::from_str(holding.as_str()) {
+            Err(err) => println! {"Invalid holding: {}", err},
+            Ok(value) => {
+                let position = model::Position{ currency, holding: value};
+                positions.push(position);
+            }
+        }
+    };
+    let portfolio = model::Portfolio{ positions };
+    let config = Configuration{
+        app_id: app_id.to_string(),
+        portfolio,
+        values: Default::default()
+    };
+
+    println!("{:?}", config)
+}
+
 fn write_config<P: AsRef<Path>>(path: P, config: &Configuration) -> Result<(), String> {
     match serde_json::to_string(&config) {
         Err(err) => Err(err.to_string()),
@@ -70,6 +101,17 @@ fn write_config<P: AsRef<Path>>(path: P, config: &Configuration) -> Result<(), S
             },
         },
     }
+}
+
+fn read_string(prompt: String) -> String {
+    print!("{}", prompt);
+    io::stdout().flush().unwrap();
+    let mut line = String::new();
+    let stdin = io::stdin();
+    stdin.lock().read_line(&mut line).expect("Could not read line");
+    let len = line.trim_end().len();
+    line.truncate(len);
+    return line;
 }
 
 #[cfg(test)]
