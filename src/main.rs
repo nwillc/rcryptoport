@@ -9,6 +9,10 @@ mod config;
 mod model;
 mod percent;
 mod prices;
+use jemallocator;
+
+#[global_allocator]
+static ALLOC: jemallocator::Jemalloc = jemallocator::Jemalloc;
 
 const SETUP: &str = "setup";
 
