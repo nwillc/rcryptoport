@@ -1,0 +1,19 @@
+{
+  "app_id": "b0a17aba4805396e04667c975bcd5c3c0a6c480a",
+  "portfolio": {
+    "positions": [
+      {
+        "currency": "BTC",
+        "holding": "0.103451"
+      },
+      {
+        "currency": "ETH",
+        "holding": "7.030965"
+      }
+    ]
+  },
+  "prices": {
+    "ETH": "0",
+    "BTC": "0"
+  }
+}

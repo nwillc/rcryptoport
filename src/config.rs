@@ -19,10 +19,10 @@ const CONFIG_FILE: &'static str = ".crypto_port.json";
 pub struct Configuration {
     pub app_id: String,
     pub portfolio: Portfolio,
-    pub values: HashMap<String, Decimal>,
+    pub prices: HashMap<String, Decimal>,
 }
 
-fn get_config_file() -> Result<PathBuf, String> {
+pub fn get_default_config_file() -> Result<PathBuf, String> {
     return match home_dir() {
         None => Err("home_dir not available".to_string()),
         Some(path) => {
@@ -33,8 +33,7 @@ fn get_config_file() -> Result<PathBuf, String> {
     };
 }
 
-pub fn get_config() -> Result<Configuration, String> {
-    let path = get_config_file()?;
+pub fn get_config<P: AsRef<Path>>(path: P) -> Result<Configuration, String> {
     match fs::read_to_string(&path) {
         Err(err) => Err(err.to_string()),
         Ok(json) => {
@@ -47,19 +46,17 @@ pub fn get_config() -> Result<Configuration, String> {
     }
 }
 
-pub fn update_config(
+pub fn update_config<P: AsRef<Path>>(
+    path: P,
     config: &Configuration,
-    values: &HashMap<String, Decimal>,
+    prices: &HashMap<String, Decimal>,
 ) -> Result<(), String> {
     let new_config = Configuration {
         app_id: config.app_id.clone(),
         portfolio: config.portfolio.clone(),
-        values: values.clone(),
+        prices: prices.clone(),
     };
-    match get_config_file() {
-        Err(err) => Err(err.to_string()),
-        Ok(path) => write_config(path, &new_config),
-    }
+    return write_config(path, &new_config);
 }
 
 pub fn setup() {
@@ -85,9 +82,9 @@ pub fn setup() {
     let config = Configuration {
         app_id: app_id.to_string(),
         portfolio,
-        values: Default::default(),
+        prices: Default::default(),
     };
-    let path = get_config_file().expect("Unable to get config file");
+    let path = get_default_config_file().expect("Unable to get config file");
     write_config(path, &config).expect("Unable to write config");
 }
 
@@ -117,11 +114,16 @@ fn read_string(prompt: String) -> String {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::HashMap;
     use std::ffi::OsStr;
+    use std::path::PathBuf;
+
+    use rust_decimal::Decimal;
+    use temp_testdir::TempDir;
 
     #[test]
-    fn test_get_config_file() {
-        match super::get_config_file() {
+    fn test_get_default_config_file() {
+        match super::get_default_config_file() {
             Err(err) => assert!(false, "unexpected error {}", err),
             Ok(config_file) => assert_eq!(
                 Some(OsStr::new(super::CONFIG_FILE)),
@@ -132,7 +134,9 @@ mod tests {
 
     #[test]
     fn test_get_config() {
-        match super::get_config() {
+        let mut config_file = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        config_file.push("testdata/portfolio2.json");
+        match super::get_config(config_file) {
             Err(err) => assert!(false, "unexpected error {}", err),
             Ok(_) => {}
         }
@@ -140,27 +144,37 @@ mod tests {
 
     #[test]
     fn test_write_config() {
-        match super::get_config() {
+        let temp = TempDir::default();
+        let mut output_path = PathBuf::from(temp.as_ref());
+        output_path.push("config.json");
+        let mut config_file = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        config_file.push("testdata/portfolio2.json");
+        match super::get_config(config_file) {
             Err(err) => assert!(false, "unexpected error {}", err),
-            Ok(config) => match super::write_config("/tmp/foo.json", &config) {
+            Ok(config) => match super::write_config(output_path, &config) {
                 Err(err) => assert!(false, "unexpected error {}", err),
                 Ok(_) => {}
             },
         }
     }
 
-    // #[test]
-    // fn test_update_config() {
-    //     match super::get_config() {
-    //         Err(err) => assert!(false, "unexpected error {}", err),
-    //         Ok(config) => {
-    //             let mut values: HashMap<String, Decimal> = HashMap::new();
-    //             values.insert("FOO".to_string(), Decimal::ZERO);
-    //             match super::update_config(&config, &values) {
-    //                 Err(err) => assert!(false, "unexpected error {}", err),
-    //                 Ok(_) => {}
-    //             }
-    //         }
-    //     }
-    // }
+    #[test]
+    fn test_update_config() {
+        let temp = TempDir::default();
+        let mut output_path = PathBuf::from(temp.as_ref());
+        output_path.push("config.json");
+        let mut config_file = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        config_file.push("testdata/portfolio2.json");
+        match super::get_config(config_file) {
+            Err(err) => assert!(false, "unexpected error {}", err),
+            Ok(config) => {
+                let mut prices: HashMap<String, Decimal> = HashMap::new();
+                prices.insert("FOO".to_string(), Decimal::ZERO);
+                match super::update_config(output_path, &config, &prices) {
+                    Err(err) => assert!(false, "unexpected error {}", err),
+                    Ok(_) => {}
+                }
+            }
+        }
+    }
 }
