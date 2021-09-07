@@ -1,4 +1,3 @@
-use std::borrow::Borrow;
 use std::collections::HashMap;
 use std::ops::{Mul, Sub};
 
@@ -6,11 +5,9 @@ use clap::App;
 use colored::*;
 use jemallocator;
 use rust_decimal::Decimal;
-use rust_decimal::prelude::ToPrimitive;
 
 mod config;
 mod model;
-mod percent;
 mod prices;
 
 #[global_allocator]
@@ -34,43 +31,6 @@ fn main() {
     let config_path = config::get_default_config_file().expect("unable to find default config");
     let config = config::get_config(&config_path).expect("unable to read config file");
     let current_prices = print(&config);
-    // for position in config.portfolio.positions.iter() {
-    //     let mut text = format!("{:16} {:4}", position.holding, position.currency);
-    //     // let current_price = current_prices.get(&position.currency);
-    //     println!(text.as_str());
-    // match current_prices.get(&position.currency) {
-    //     None => {}
-    //     Some(current_price) => {
-    // let current_value = position.holding * price;
-    // let prior_value = match config.values.get(&position.currency) {
-    //     None => current_value,
-    //     Some(value) => *value,
-    // };
-    // prior_total += prior_value;
-    // let percent_change = percent::percent_change(prior_value, current_value);
-    // let color = change_color(percent_change);
-    // let text = format!(
-    //     "{:16} {:4} {:13} ({:>7}%)",
-    //     position.holding,
-    //     position.currency,
-    //     current_value.round_dp(2),
-    //     percent_change.round_dp(2)
-    // );
-    // println!("{}", text.color(color));
-    // current_values.insert(position.currency.clone(), current_value);
-    // current_total += current_value;
-    // }
-    //     }
-    // }
-    // // let percent_change = percent::percent_change(prior_total, current_total);
-    // // let color = change_color(percent_change);
-    // // let text = format!(
-    // //     "{:>20} {:14} ({:>7}%)",
-    // //     "Total:",
-    // //     current_total.round_dp(2),
-    // //     percent_change.round_dp(2)
-    // // );
-    // println!("{}", text.color(color));
     config::update_config(config_path, &config, &current_prices).expect("unable to update config")
 }
 
@@ -102,6 +62,7 @@ fn print(configuration: &config::Configuration) -> HashMap<String, Decimal> {
         };
         text += format!("{:>16}", current_price.to_string()).as_str();
         let color = change_color(prior_price, current_price);
+        text += format!(" ({:>8})", (current_price - prior_price).round_dp(2).to_string()).as_str();
         let prior_value = position.holding.mul(prior_price);
         let current_value = position.holding.mul(current_price);
         let current_value_str = if position.holding > Decimal::ZERO {
@@ -115,7 +76,7 @@ fn print(configuration: &config::Configuration) -> HashMap<String, Decimal> {
         current_portfolio_value += current_value;
     }
     let color = change_color(&prior_portfolio_value, &current_portfolio_value);
-    let text = format!("{:>53}{:>20}", "Total:", current_portfolio_value.round_dp(2));
+    let text = format!("{:>64}{:>20}", "Total:", current_portfolio_value.round_dp(2));
     println!("{}", text.color(color));
     return current_prices;
 }
