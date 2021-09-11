@@ -61,7 +61,7 @@ pub fn update_config<P: AsRef<Path>>(
 
 pub fn setup() {
     let app_id = read_string("Enter App ID: ".to_string());
-    println!("Enter your crypto holdings, the currency name and the holding size. Blank currency when done.");
+    println!("Enter your crypto holdings, the currency name and the holding size. Holding can be zero. Enter return in currency when done.");
     let mut positions: Vec<model::Position> = Vec::new();
     loop {
         let mut currency = read_string(" Currency: ".to_string());

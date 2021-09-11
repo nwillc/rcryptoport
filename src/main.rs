@@ -1,3 +1,4 @@
+use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::ops::{Mul, Sub};
 use std::path::PathBuf;
@@ -96,23 +97,33 @@ fn print(configuration: &config::Configuration) -> HashMap<String, Decimal> {
     return current_prices;
 }
 
+#[inline]
 fn change_color(prior: &Decimal, current: &Decimal) -> String {
-    let delta = current.sub(prior);
-    let color = if delta < Decimal::ZERO {
-        "red"
-    } else if delta > Decimal::ZERO {
-        "green"
-    } else {
-        "white"
-    };
-    return color.to_string();
+    match Decimal::ZERO.cmp(&current.sub(prior)) {
+        Ordering::Greater => "red",
+        Ordering::Less => "green",
+        Ordering::Equal => "white"
+    }.to_string()
 }
 
 #[cfg(test)]
 mod tests {
     use std::path::PathBuf;
 
+    use rust_decimal::Decimal;
+
     use crate::config;
+
+    #[test]
+    fn test_change_color() {
+        let mut color: String;
+        color = super::change_color(&Decimal::from(0), &Decimal::from(1));
+        assert_eq!("green", color);
+        color = super::change_color(&Decimal::from(1), &Decimal::from(0));
+        assert_eq!("red", color);
+        color = super::change_color(&Decimal::from(1), &Decimal::from(1));
+        assert_eq!("white", color);
+    }
 
     #[test]
     fn test_print() {
