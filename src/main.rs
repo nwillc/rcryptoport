@@ -1,7 +1,8 @@
 use std::collections::HashMap;
 use std::ops::{Mul, Sub};
+use std::path::PathBuf;
 
-use clap::App;
+use clap::{App, Arg};
 use colored::*;
 use jemallocator;
 use rust_decimal::Decimal;
@@ -13,6 +14,7 @@ mod prices;
 #[global_allocator]
 static ALLOC: jemallocator::Jemalloc = jemallocator::Jemalloc;
 
+const CONFIG: &str = "config";
 const SETUP: &str = "setup";
 
 fn main() {
@@ -20,15 +22,26 @@ fn main() {
         .version("1.0")
         .author("nwillc@gmail.com")
         .about("Retrieve current value of your crypto portfolio.")
+        .arg(Arg::with_name(CONFIG)
+            .short("c")
+            .long(CONFIG)
+            .value_name("FILE")
+            .help("Path to specific config file")
+            .takes_value(true))
         .subcommand(App::new(SETUP)
             .about("Set up portfolio configuration"))
         .get_matches();
 
+    let config_path: PathBuf;
+    if let Some(ref config) = matches.value_of(CONFIG) {
+        config_path = PathBuf::from(config)
+    } else {
+        config_path = config::get_default_config_file().expect("unable to find default config");
+    }
     if let Some(ref _matches) = matches.subcommand_matches(SETUP) {
         config::setup();
         return;
     }
-    let config_path = config::get_default_config_file().expect("unable to find default config");
     let config = config::get_config(&config_path).expect("unable to read config file");
     let current_prices = print(&config);
     config::update_config(config_path, &config, &current_prices).expect("unable to update config")
@@ -65,18 +78,20 @@ fn print(configuration: &config::Configuration) -> HashMap<String, Decimal> {
         text += format!(" ({:>8})", (current_price - prior_price).round_dp(2).to_string()).as_str();
         let prior_value = position.holding.mul(prior_price);
         let current_value = position.holding.mul(current_price);
-        let current_value_str = if position.holding > Decimal::ZERO {
-            current_value.round_dp(2).to_string()
-        } else {
-            "".to_string()
+        if position.holding > Decimal::ZERO {
+            text += format!("{:>20} ({:>8})",
+                            current_value.round_dp(2).to_string(),
+                            (current_value - prior_value).round_dp(2).to_string()).as_str();
         };
-        text += format!("{:>20}", current_value_str).as_str();
         println!("{}", text.color(color));
         prior_portfolio_value += prior_value;
         current_portfolio_value += current_value;
     }
     let color = change_color(&prior_portfolio_value, &current_portfolio_value);
-    let text = format!("{:>64}{:>20}", "Total:", current_portfolio_value.round_dp(2));
+    let text = format!("{:>64}{:>20} ({:>8})",
+                       "Total:",
+                       current_portfolio_value.round_dp(2),
+                       (current_portfolio_value - prior_portfolio_value).round_dp(2).to_string());
     println!("{}", text.color(color));
     return current_prices;
 }
