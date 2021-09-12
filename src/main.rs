@@ -16,11 +16,12 @@ mod prices;
 static ALLOC: jemallocator::Jemalloc = jemallocator::Jemalloc;
 
 const CONFIG: &str = "config";
+const DRY_RUN: &str = "dry-run";
 const SETUP: &str = "setup";
 
 fn main() {
     let matches = App::new("rcryptoport")
-        .version("1.0")
+        .version("2.0.0")
         .author("nwillc@gmail.com")
         .about("Retrieve current value of your crypto portfolio.")
         .arg(Arg::with_name(CONFIG)
@@ -29,6 +30,10 @@ fn main() {
             .value_name("FILE")
             .help("Path to specific config file")
             .takes_value(true))
+        .arg(Arg::with_name(DRY_RUN)
+            .short("d")
+            .long(DRY_RUN)
+            .help("Dry run, do not save values"))
         .subcommand(App::new(SETUP)
             .about("Set up portfolio configuration"))
         .get_matches();
@@ -45,7 +50,9 @@ fn main() {
     }
     let config = config::get_config(&config_path).expect("unable to read config file");
     let current_prices = print(&config);
-    config::update_config(config_path, &config, &current_prices).expect("unable to update config")
+    if !matches.is_present(DRY_RUN) {
+        config::update_config(config_path, &config, &current_prices).expect("unable to update config")
+    }
 }
 
 fn print(configuration: &config::Configuration) -> HashMap<String, Decimal> {
@@ -59,37 +66,53 @@ fn print(configuration: &config::Configuration) -> HashMap<String, Decimal> {
     let mut prior_portfolio_value = Decimal::ZERO;
     let mut current_portfolio_value = Decimal::ZERO;
     for position in configuration.portfolio.positions.iter() {
+        let mut text: String;
+
+        // symbol
+        text = format!("{:>4}", position.currency);
+
+        // holding
         let holding_string = if position.holding > Decimal::ZERO {
             position.holding.to_string()
         } else {
             "".to_string()
         };
-        let mut text = format!("{:16} {:4}", holding_string, position.currency);
-        let prior_price = match configuration.prices.get(&position.currency) {
-            None => &Decimal::ZERO,
-            Some(price) => price,
-        };
-        text += format!("{:>16}", prior_price.to_string()).as_str();
+        text += format!(" {:>16}", holding_string).as_str();
+
+        // current price
         let current_price = match current_prices.get(&position.currency) {
             None => &Decimal::ZERO,
             Some(price) => price,
         };
         text += format!("{:>16}", current_price.to_string()).as_str();
-        let color = change_color(prior_price, current_price);
+
+        // prior price
+        let prior_price = match configuration.prices.get(&position.currency) {
+            None => &Decimal::ZERO,
+            Some(price) => price,
+        };
+
+        // price change
         text += format!(" ({:>8})", (current_price - prior_price).round_dp(2).to_string()).as_str();
+
+        // holding values
         let prior_value = position.holding.mul(prior_price);
         let current_value = position.holding.mul(current_price);
+
         if position.holding > Decimal::ZERO {
             text += format!("{:>20} ({:>8})",
                             current_value.round_dp(2).to_string(),
                             (current_value - prior_value).round_dp(2).to_string()).as_str();
         };
+
+        // color
+        let color = change_color(&prior_price, &current_price);
         println!("{}", text.color(color));
         prior_portfolio_value += prior_value;
         current_portfolio_value += current_value;
     }
     let color = change_color(&prior_portfolio_value, &current_portfolio_value);
-    let text = format!("{:>64}{:>20} ({:>8})",
+    let text = format!("{:>48}{:>20} ({:>8})",
                        "Total:",
                        current_portfolio_value.round_dp(2),
                        (current_portfolio_value - prior_portfolio_value).round_dp(2).to_string());
