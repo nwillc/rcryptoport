@@ -2,7 +2,7 @@
 ---
 # rcryptoport
 
-A command line crypto-currency portfolio status application implemented in Rust:
+A command line crypto-currency portfolio status application implemented in Rust. Uses [Nomics](https://p.nomics.com/cryptocurrency-bitcoin-api) free API.
 
 <pre>
 $ rcryptoport<span style="color:red">
