@@ -42,3 +42,8 @@ Have your Nomics API key and holdings info ready. Setup your configuration:
 $ rcryptoport setup
 ```
 
+## TODO
+
+- Add timestamp to config and note time elapsed since last run in output.
+- Title row
+- Loop mode
