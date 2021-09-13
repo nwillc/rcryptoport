@@ -65,6 +65,8 @@ fn print(configuration: &config::Configuration) -> HashMap<String, Decimal> {
     let current_prices = prices::prices(&configuration.app_id, &currencies).expect("unable to retrieve prices");
     let mut prior_portfolio_value = Decimal::ZERO;
     let mut current_portfolio_value = Decimal::ZERO;
+
+    println!("{}", "Symbol        Holding          Price    Change              Position   Change".bold());
     for position in configuration.portfolio.positions.iter() {
         let mut text: String;
 
