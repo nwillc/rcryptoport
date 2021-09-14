@@ -7,6 +7,7 @@ use clap::{App, Arg};
 use colored::*;
 use jemallocator;
 use rust_decimal::Decimal;
+use std::{time, thread};
 
 mod config;
 mod model;
@@ -17,6 +18,7 @@ static ALLOC: jemallocator::Jemalloc = jemallocator::Jemalloc;
 
 const CONFIG: &str = "config";
 const DRY_RUN: &str = "dry-run";
+const LOOP: &str = "loop";
 const SETUP: &str = "setup";
 
 fn main() {
@@ -27,13 +29,19 @@ fn main() {
         .arg(Arg::with_name(CONFIG)
             .short("c")
             .long(CONFIG)
+            .takes_value(true)
             .value_name("FILE")
-            .help("Path to specific config file")
-            .takes_value(true))
+            .help("Path to specific config file"))
         .arg(Arg::with_name(DRY_RUN)
             .short("d")
             .long(DRY_RUN)
             .help("Dry run, do not save values"))
+        .arg(Arg::with_name(LOOP)
+            .short("l")
+            .long(LOOP)
+            .takes_value(true)
+            .value_name("SECONDS")
+            .help("Run looping every SECONDS seconds"))
         .subcommand(App::new(SETUP)
             .about("Set up portfolio configuration"))
         .get_matches();
@@ -48,10 +56,31 @@ fn main() {
         config::setup();
         return;
     }
-    let config = config::get_config(&config_path).expect("unable to read config file");
-    let current_prices = print(&config);
-    if !matches.is_present(DRY_RUN) {
-        config::update_config(config_path, &config, &current_prices).expect("unable to update config")
+    let looping: bool;
+    let wait: time::Duration;
+    if let Some(ref seconds) = matches.value_of(LOOP) {
+        looping = true;
+        let wait_seconds: u64 = seconds.parse::<u64>().unwrap();
+        wait = time::Duration::from_secs(wait_seconds);
+    } else {
+        looping = false;
+        wait = time::Duration::ZERO;
+    }
+    let mut config = config::get_config(&config_path).expect("unable to read config file");
+    loop {
+        let current_prices = print(&config);
+        if !matches.is_present(DRY_RUN) {
+            config = config::Configuration {
+                app_id: config.app_id.clone(),
+                portfolio: config.portfolio.clone(),
+                prices: current_prices.clone(),
+            };
+            config::write_config(&config_path, &config).expect("unable to update config")
+        }
+        if !looping {
+            break;
+        }
+        thread::sleep(wait);
     }
 }
 
@@ -66,20 +95,12 @@ fn print(configuration: &config::Configuration) -> HashMap<String, Decimal> {
     let mut prior_portfolio_value = Decimal::ZERO;
     let mut current_portfolio_value = Decimal::ZERO;
 
-    println!("{}", "Symbol        Holding          Price    Change              Position   Change".bold());
+    println!("{}", "Symbol     Price       Change         Holding             Position   Change".bold());
     for position in configuration.portfolio.positions.iter() {
         let mut text: String;
 
         // symbol
         text = format!("{:>4}", position.currency);
-
-        // holding
-        let holding_string = if position.holding > Decimal::ZERO {
-            position.holding.to_string()
-        } else {
-            "".to_string()
-        };
-        text += format!(" {:>16}", holding_string).as_str();
 
         // current price
         let current_price = match current_prices.get(&position.currency) {
@@ -97,6 +118,13 @@ fn print(configuration: &config::Configuration) -> HashMap<String, Decimal> {
         // price change
         text += format!(" ({:>8})", (current_price - prior_price).round_dp(2).to_string()).as_str();
 
+        // holding
+        let holding_string = if position.holding > Decimal::ZERO {
+            position.holding.to_string()
+        } else {
+            "".to_string()
+        };
+        text += format!(" {:>14}", holding_string).as_str();
         // holding values
         let prior_value = position.holding.mul(prior_price);
         let current_value = position.holding.mul(current_price);
@@ -114,8 +142,8 @@ fn print(configuration: &config::Configuration) -> HashMap<String, Decimal> {
         current_portfolio_value += current_value;
     }
     let color = change_color(&prior_portfolio_value, &current_portfolio_value);
-    let text = format!("{:>48}{:>20} ({:>8})",
-                       "Total:",
+    print!("{:>45}", "Total:".bold());
+    let text = format!("{:>21} ({:>8})",
                        current_portfolio_value.round_dp(2),
                        (current_portfolio_value - prior_portfolio_value).round_dp(2).to_string());
     println!("{}", text.color(color));
