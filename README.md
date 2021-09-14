@@ -15,8 +15,8 @@ $ rcryptoport<span style="color:red">
 
 ## Command Line Options
 ```shell
-$ ./target/debug/rcryptoport -h
-rcryptoport 2.0
+$ rcryptoport -h
+rcryptoport 2.0.0
 nwillc@gmail.com
 Retrieve current value of your crypto portfolio.
 
@@ -29,7 +29,8 @@ FLAGS:
     -V, --version    Prints version information
 
 OPTIONS:
-    -c, --config <FILE>    Path to specific config file
+    -c, --config <FILE>     Path to specific config file
+    -l, --loop <SECONDS>    Run looping every SECONDS seconds
 
 SUBCOMMANDS:
     help     Prints this message or the help of the given subcommand(s)
