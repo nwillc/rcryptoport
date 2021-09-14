@@ -4,14 +4,15 @@
 
 A command line crypto-currency portfolio status application implemented in Rust. Uses [Nomics](https://p.nomics.com/cryptocurrency-bitcoin-api) free API.
 
-<pre>
-$ rcryptoport<span style="color:red">
- BTC         0.103451  45997.35614482 (  -68.66)             4758.47 (   -7.10)
- ETH         7.030965   3418.74488592 (   -7.29)            24037.08 (  -51.27)</span><span style="color:green">
- SOL                     176.55593750 (    0.35)</span><span style="color:red">
- ZEC                     132.13343114 (   -0.42)
-                                          Total:            28795.55 (  -58.37)</span>
-</pre>
+```shell
+$ rcryptoport
+Symbol     Price       Change         Holding             Position   Change
+ BTC  46694.39368896 (   -6.76)       0.103451             4830.58 (   -0.70)
+ ETH   3362.54223815 (    1.67)       7.030965            23641.92 (   11.71)
+ SOL    153.38500094 (    0.23)
+ ZEC    130.81561919 (   -0.14)
+                                       Total:             28472.50 (   11.01)
+``
 
 ## Command Line Options
 ```shell
