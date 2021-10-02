@@ -1,3 +1,4 @@
+use std::{thread, time};
 use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::ops::{Mul, Sub};
@@ -7,14 +8,13 @@ use chrono::{Duration, Utc};
 use colored::*;
 use jemallocator;
 use rust_decimal::Decimal;
-use std::{thread, time};
+
+use crate::model::Configuration;
 
 mod cli;
 mod config;
 mod model;
 mod prices;
-
-use crate::model::Configuration;
 
 #[global_allocator]
 static ALLOC: jemallocator::Jemalloc = jemallocator::Jemalloc;
@@ -98,7 +98,7 @@ fn print(configuration: &Configuration) -> HashMap<String, Decimal> {
             " ({:>8})",
             (current_price - prior_price).round_dp(2).to_string()
         )
-        .as_str();
+            .as_str();
 
         // holding
         let holding_string = if position.holding > Decimal::ZERO {
@@ -117,7 +117,7 @@ fn print(configuration: &Configuration) -> HashMap<String, Decimal> {
                 current_value.round_dp(2).to_string(),
                 (current_value - prior_value).round_dp(2).to_string()
             )
-            .as_str();
+                .as_str();
         };
 
         // color
@@ -129,13 +129,13 @@ fn print(configuration: &Configuration) -> HashMap<String, Decimal> {
     let color = change_color(&prior_portfolio_value, &current_portfolio_value);
     let since = Utc::now().signed_duration_since(configuration.timestamp);
     print!(
-        "{} {}{:>30}",
-        "Since:".bold(),
-        hhmmss(since),
+        "{} {}{:>28}",
+        "Elapsed:".bold(),
+        hhhmmss(since),
         "Total:".bold()
     );
     let text = format!(
-        "{:>21} ({:>8})",
+        "{:>20} ({:>8})",
         current_portfolio_value.round_dp(2),
         (current_portfolio_value - prior_portfolio_value)
             .round_dp(2)
@@ -145,12 +145,12 @@ fn print(configuration: &Configuration) -> HashMap<String, Decimal> {
     return current_prices;
 }
 
-fn hhmmss(duration: Duration) -> String {
+fn hhhmmss(duration: Duration) -> String {
     let sec = duration.num_seconds();
     let seconds = sec % 60;
     let minutes = (sec / 60) % 60;
     let hours = sec / 60 / 60;
-    format!("{:02}:{:02}:{:02}", hours, minutes, seconds)
+    format!("{:03}:{:02}:{:02}", hours, minutes, seconds)
 }
 
 #[inline]
@@ -160,13 +160,14 @@ fn change_color(prior: &Decimal, current: &Decimal) -> String {
         Ordering::Less => "green",
         Ordering::Equal => "white",
     }
-    .to_string()
+        .to_string()
 }
 
 #[cfg(test)]
 mod tests {
     use std::path::PathBuf;
 
+    use chrono::Duration;
     use rust_decimal::Decimal;
 
     use crate::config;
@@ -188,5 +189,21 @@ mod tests {
         config_file.push("testdata/portfolio2.json");
         let configuration = config::get_config(config_file).expect("unable to read config");
         super::print(&configuration);
+    }
+
+    #[test]
+    fn test_hhmmss() {
+        let d = Duration::seconds(10);
+        assert_eq!("000:00:10", super::hhhmmss(d));
+        let d = Duration::seconds(61);
+         assert_eq!("000:01:01", super::hhhmmss(d));
+        let d = Duration::minutes(10);
+        assert_eq!("000:10:00", super::hhhmmss(d));
+        let d = Duration::minutes(10) + Duration::seconds(10);
+        assert_eq!("000:10:10", super::hhhmmss(d));
+        let d = Duration::hours(10);
+        assert_eq!("010:00:00", super::hhhmmss(d));
+        let d = Duration::hours(10) + Duration::minutes(10) + Duration::seconds(10);
+        assert_eq!("010:10:10", super::hhhmmss(d));
     }
 }
