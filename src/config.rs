@@ -1,16 +1,15 @@
-use std::collections::HashMap;
 use std::fs;
-use std::io::{self, BufRead};
 use std::io::Write;
+use std::io::{self, BufRead};
 use std::path::{Path, PathBuf};
 
+use chrono::Utc;
 use dirs::home_dir;
-use rust_decimal::Decimal;
 use rust_decimal::prelude::FromStr;
-// use serde::{Deserialize, Serialize};
+use rust_decimal::Decimal;
 use serde_json::Error;
 
-use crate::model;
+use crate::model::{Configuration, Portfolio, Position};
 
 const CONFIG_FILE: &'static str = ".crypto_port.json";
 
@@ -25,11 +24,11 @@ pub fn get_default_config_file() -> Result<PathBuf, String> {
     };
 }
 
-pub fn get_config<P: AsRef<Path>>(path: P) -> Result<model::Configuration, String> {
+pub fn get_config<P: AsRef<Path>>(path: P) -> Result<Configuration, String> {
     match fs::read_to_string(&path) {
         Err(err) => Err(err.to_string()),
         Ok(json) => {
-            let c: Result<model::Configuration, Error> = serde_json::from_str(&json);
+            let c: Result<Configuration, Error> = serde_json::from_str(&json);
             match c {
                 Err(err) => Err(err.to_string()),
                 Ok(config) => Ok(config),
@@ -38,8 +37,7 @@ pub fn get_config<P: AsRef<Path>>(path: P) -> Result<model::Configuration, Strin
     }
 }
 
-pub fn write_config<P: AsRef<Path>>(path: P, app_id: String, portfolio: model::Portfolio, prices: HashMap<String, Decimal>) -> Result<(), String> {
-    let config = model::Configuration { app_id, portfolio, prices };
+pub fn write_config<P: AsRef<Path>>(path: P, config: &Configuration) -> Result<(), String> {
     match serde_json::to_string(&config) {
         Err(err) => Err(err.to_string()),
         Ok(as_json) => match fs::File::create(path) {
@@ -55,7 +53,7 @@ pub fn write_config<P: AsRef<Path>>(path: P, app_id: String, portfolio: model::P
 pub fn setup() {
     let app_id = read_string("Enter App ID: ".to_string());
     println!("Enter your crypto holdings, the currency name and the holding size. Holding can be zero. Enter return in currency when done.");
-    let mut positions: Vec<model::Position> = Vec::new();
+    let mut positions: Vec<Position> = Vec::new();
     loop {
         let mut currency = read_string(" Currency: ".to_string());
         if currency.eq("") {
@@ -66,14 +64,23 @@ pub fn setup() {
         match Decimal::from_str(holding.as_str()) {
             Err(err) => println! {"Invalid holding: {}", err},
             Ok(value) => {
-                let position = model::Position { currency, holding: value };
+                let position = Position {
+                    currency,
+                    holding: value,
+                };
                 positions.push(position);
             }
         }
+    }
+    let portfolio = Portfolio { positions };
+    let config = Configuration {
+        app_id: app_id.to_string(),
+        portfolio,
+        prices: Default::default(),
+        timestamp: Utc::now(),
     };
-    let portfolio = model::Portfolio { positions };
     let path = get_default_config_file().expect("Unable to get config file");
-    write_config(path, app_id.to_string(), portfolio, Default::default()).expect("Unable to write config");
+    write_config(path, &config).expect("Unable to write config");
 }
 
 fn read_string(prompt: String) -> String {
@@ -81,7 +88,10 @@ fn read_string(prompt: String) -> String {
     io::stdout().flush().unwrap();
     let mut line = String::new();
     let stdin = io::stdin();
-    stdin.lock().read_line(&mut line).expect("Could not read line");
+    stdin
+        .lock()
+        .read_line(&mut line)
+        .expect("Could not read line");
     let len = line.trim_end().len();
     line.truncate(len);
     return line;
@@ -124,7 +134,7 @@ mod tests {
         config_file.push("testdata/portfolio2.json");
         match super::get_config(config_file) {
             Err(err) => assert!(false, "unexpected error {}", err),
-            Ok(config) => match super::write_config(output_path, config.app_id, config.portfolio, config.prices) {
+            Ok(config) => match super::write_config(output_path, &config) {
                 Err(err) => assert!(false, "unexpected error {}", err),
                 Ok(_) => {}
             },
