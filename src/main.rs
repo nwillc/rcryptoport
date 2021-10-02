@@ -1,3 +1,4 @@
+use std::{thread, time};
 use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::ops::{Mul, Sub};
@@ -7,7 +8,6 @@ use clap::{App, Arg};
 use colored::*;
 use jemallocator;
 use rust_decimal::Decimal;
-use std::{time, thread};
 
 mod config;
 mod model;
@@ -69,13 +69,13 @@ fn main() {
     let mut config = config::get_config(&config_path).expect("unable to read config file");
     loop {
         let current_prices = print(&config);
+        config.prices = current_prices;
         if !matches.is_present(DRY_RUN) {
-            config = config::Configuration {
-                app_id: config.app_id.clone(),
-                portfolio: config.portfolio.clone(),
-                prices: current_prices.clone(),
-            };
-            config::write_config(&config_path, &config).expect("unable to update config")
+            config::write_config(
+                &config_path,
+                config.app_id.to_owned(),
+                config.portfolio.to_owned(),
+                config.prices.to_owned()).expect("unable to update config");
         }
         if !looping {
             break;
@@ -84,7 +84,7 @@ fn main() {
     }
 }
 
-fn print(configuration: &config::Configuration) -> HashMap<String, Decimal> {
+fn print(configuration: &model::Configuration) -> HashMap<String, Decimal> {
     let currencies: Vec<String> = configuration
         .portfolio
         .positions

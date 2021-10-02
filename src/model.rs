@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use rust_decimal::prelude::*;
 use serde::{Deserialize, Serialize};
 
@@ -10,4 +11,11 @@ pub struct Position {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Portfolio {
     pub positions: Vec<Position>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct Configuration {
+    pub app_id: String,
+    pub portfolio: Portfolio,
+    pub prices: HashMap<String, Decimal>,
 }

@@ -7,20 +7,12 @@ use std::path::{Path, PathBuf};
 use dirs::home_dir;
 use rust_decimal::Decimal;
 use rust_decimal::prelude::FromStr;
-use serde::{Deserialize, Serialize};
+// use serde::{Deserialize, Serialize};
 use serde_json::Error;
 
 use crate::model;
-use crate::model::Portfolio;
 
 const CONFIG_FILE: &'static str = ".crypto_port.json";
-
-#[derive(Serialize, Deserialize, Debug)]
-pub struct Configuration {
-    pub app_id: String,
-    pub portfolio: Portfolio,
-    pub prices: HashMap<String, Decimal>,
-}
 
 pub fn get_default_config_file() -> Result<PathBuf, String> {
     return match home_dir() {
@@ -33,11 +25,11 @@ pub fn get_default_config_file() -> Result<PathBuf, String> {
     };
 }
 
-pub fn get_config<P: AsRef<Path>>(path: P) -> Result<Configuration, String> {
+pub fn get_config<P: AsRef<Path>>(path: P) -> Result<model::Configuration, String> {
     match fs::read_to_string(&path) {
         Err(err) => Err(err.to_string()),
         Ok(json) => {
-            let c: Result<Configuration, Error> = serde_json::from_str(&json);
+            let c: Result<model::Configuration, Error> = serde_json::from_str(&json);
             match c {
                 Err(err) => Err(err.to_string()),
                 Ok(config) => Ok(config),
@@ -46,7 +38,8 @@ pub fn get_config<P: AsRef<Path>>(path: P) -> Result<Configuration, String> {
     }
 }
 
-pub fn write_config<P: AsRef<Path>>(path: P, config: &Configuration) -> Result<(), String> {
+pub fn write_config<P: AsRef<Path>>(path: P, app_id: String, portfolio: model::Portfolio, prices: HashMap<String, Decimal>) -> Result<(), String> {
+    let config = model::Configuration { app_id, portfolio, prices };
     match serde_json::to_string(&config) {
         Err(err) => Err(err.to_string()),
         Ok(as_json) => match fs::File::create(path) {
@@ -79,13 +72,8 @@ pub fn setup() {
         }
     };
     let portfolio = model::Portfolio { positions };
-    let config = Configuration {
-        app_id: app_id.to_string(),
-        portfolio,
-        prices: Default::default(),
-    };
     let path = get_default_config_file().expect("Unable to get config file");
-    write_config(path, &config).expect("Unable to write config");
+    write_config(path, app_id.to_string(), portfolio, Default::default()).expect("Unable to write config");
 }
 
 fn read_string(prompt: String) -> String {
@@ -136,7 +124,7 @@ mod tests {
         config_file.push("testdata/portfolio2.json");
         match super::get_config(config_file) {
             Err(err) => assert!(false, "unexpected error {}", err),
-            Ok(config) => match super::write_config(output_path, &config) {
+            Ok(config) => match super::write_config(output_path, config.app_id, config.portfolio, config.prices) {
                 Err(err) => assert!(false, "unexpected error {}", err),
                 Ok(_) => {}
             },
