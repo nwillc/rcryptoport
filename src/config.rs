@@ -38,7 +38,7 @@ pub fn get_config<P: AsRef<Path>>(path: P) -> Result<Configuration, String> {
 }
 
 pub fn write_config<P: AsRef<Path>>(path: P, config: &Configuration) -> Result<(), String> {
-    match serde_json::to_string(&config) {
+    match serde_json::to_string_pretty(&config) {
         Err(err) => Err(err.to_string()),
         Ok(as_json) => match fs::File::create(path) {
             Err(err) => Err(err.to_string()),
