@@ -52,6 +52,7 @@ pub fn write_config<P: AsRef<Path>>(path: P, config: &Configuration) -> Result<(
 
 pub fn setup() {
     let app_id = read_string("Enter App ID: ".to_string());
+    let fx_app_id = read_string("Enter FX App ID: ".to_string());
     println!("Enter your crypto holdings, the currency name and the holding size. Holding can be zero. Enter return in currency when done.");
     let mut positions: Vec<Position> = Vec::new();
     loop {
@@ -75,6 +76,7 @@ pub fn setup() {
     let portfolio = Portfolio { positions };
     let config = Configuration {
         app_id: app_id.to_string(),
+        fx_app_id: fx_app_id.to_string(),
         portfolio,
         prices: Default::default(),
         timestamp: Utc::now(),

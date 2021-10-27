@@ -15,12 +15,19 @@ mod cli;
 mod config;
 mod model;
 mod prices;
+mod forex;
 
 #[global_allocator]
 static ALLOC: jemallocator::Jemalloc = jemallocator::Jemalloc;
 
 fn main() {
     let matches = cli::cli();
+    let quoted = if let Some(ref currency) = matches.value_of(cli::QUOTED) {
+        currency
+    } else {
+        "USD"
+    };
+
     let config_path = if let Some(ref config) = matches.value_of(cli::CONFIG) {
         PathBuf::from(config)
     } else {
@@ -41,10 +48,11 @@ fn main() {
 
     let mut config = config::get_config(&config_path).expect("unable to read config file");
     loop {
-        let current_prices = print(&config);
+        let current_prices = print(&config, quoted);
         if !matches.is_present(cli::DRY_RUN) {
             config = Configuration {
                 app_id: config.app_id.clone(),
+                fx_app_id: config.fx_app_id.clone(),
                 portfolio: config.portfolio.clone(),
                 prices: current_prices.clone(),
                 timestamp: Utc::now(),
@@ -58,7 +66,12 @@ fn main() {
     }
 }
 
-fn print(configuration: &Configuration) -> HashMap<String, Decimal> {
+fn print(configuration: &Configuration, quoted: &str) -> HashMap<String, Decimal> {
+    let exchange_rate = if quoted == "USD" {
+        Decimal::from(1)
+    } else {
+        forex::get_fx_rate("HNCSs6HDhJHAhRD6p4aR", "USD", quoted).unwrap()
+    };
     let currencies: Vec<String> = configuration
         .portfolio
         .positions
@@ -81,23 +94,23 @@ fn print(configuration: &Configuration) -> HashMap<String, Decimal> {
         text = format!("{:>4}", position.currency);
 
         // current price
-        let current_price = match current_prices.get(&position.currency) {
+        let current_price_usd = match current_prices.get(&position.currency) {
             None => &Decimal::ZERO,
             Some(price) => price,
         };
-        text += format!("{:>16}", current_price.to_string()).as_str();
+        let current_price_quoted = current_price_usd.mul(exchange_rate).round_dp(2);
+        text += format!("{:>16}", current_price_quoted.to_string()).as_str();
 
         // prior price
-        let prior_price = match configuration.prices.get(&position.currency) {
+        let prior_price_usd = match configuration.prices.get(&position.currency) {
             None => &Decimal::ZERO,
             Some(price) => price,
         };
-
+        let prior_price_quoted = prior_price_usd.mul(exchange_rate).round_dp(2);
         // price change
         text += format!(
             " ({:>8})",
-            (current_price - prior_price).round_dp(2).to_string()
-        )
+            current_price_quoted.sub(prior_price_quoted).mul(exchange_rate).round_dp(2).to_string())
             .as_str();
 
         // holding
@@ -107,9 +120,9 @@ fn print(configuration: &Configuration) -> HashMap<String, Decimal> {
             "".to_string()
         };
         text += format!(" {:>14}", holding_string).as_str();
-        // holding values
-        let prior_value = position.holding.mul(prior_price);
-        let current_value = position.holding.mul(current_price);
+        // position values
+        let prior_value = position.holding.mul(prior_price_quoted).mul(exchange_rate);
+        let current_value = position.holding.mul(current_price_quoted).mul(exchange_rate);
 
         if position.holding > Decimal::ZERO {
             text += format!(
@@ -121,7 +134,7 @@ fn print(configuration: &Configuration) -> HashMap<String, Decimal> {
         };
 
         // color
-        let color = change_color(&prior_price, &current_price);
+        let color = change_color(&prior_price_quoted, &current_price_quoted);
         println!("{}", text.color(color));
         prior_portfolio_value += prior_value;
         current_portfolio_value += current_value;
@@ -188,15 +201,15 @@ mod tests {
         let mut config_file = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
         config_file.push("testdata/portfolio2.json");
         let configuration = config::get_config(config_file).expect("unable to read config");
-        super::print(&configuration);
+        super::print(&configuration, "USD");
     }
 
     #[test]
-    fn test_hhmmss() {
+    fn test_hhhmmss() {
         let d = Duration::seconds(10);
         assert_eq!("000:00:10", super::hhhmmss(d));
         let d = Duration::seconds(61);
-         assert_eq!("000:01:01", super::hhhmmss(d));
+        assert_eq!("000:01:01", super::hhhmmss(d));
         let d = Duration::minutes(10);
         assert_eq!("000:10:00", super::hhhmmss(d));
         let d = Duration::minutes(10) + Duration::seconds(10);
